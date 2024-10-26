@@ -74,7 +74,7 @@ def get_random_string(json_file="config/presetMessage.json"):
             data = json.load(file)
         
         # Ensure the data is a list and not empty
-        if isinstance(data, list) and data:
+        if isinstance(data, list) and len(data)>0:
             # Return a random string from the list
             return random.choice(data)
         else:
@@ -83,6 +83,24 @@ def get_random_string(json_file="config/presetMessage.json"):
     except (FileNotFoundError, json.JSONDecodeError):
         print("The JSON file does not exist or is not valid.")
         return None
+def clear_json_file(file_path="config/presetMessage.json"):
+    """
+    Clears the contents of the specified JSON file by resetting it to an empty list.
+    
+    :param file_path: The path to the JSON file.
+    """
+    try:
+        # Reset the data to an empty list or dictionary
+        empty_data = {}
+
+        # Write the empty data back to the file
+        with open(file_path, 'w') as file:
+            json.dump(empty_data, file)
+
+        print("JSON file has been cleared successfully.")
+
+    except Exception as e:
+        print(f"An error occurred while clearing the JSON file: {e}")
 
 
 def transform_user_messages(data):
@@ -122,6 +140,8 @@ async def fetch_recent_chats(channel_id):
         # Check if the message mentions the bot
         if bot.user in message.mentions:
             continue
+        if message.content.startswith("~"):
+            continue
         
         # If the author is not a bot and is not already tracked
         if not message.author.bot:
@@ -143,7 +163,26 @@ async def fetch_recent_chats(channel_id):
     re=await generate_response(prompt=user_messages[author_id][0],instructions=instruction,history=transform_user_messages(user_messages))
     print(re)
     return f"<@{list(user_messages.keys())[0]}> {re}"
-   
+
+def check_periodic_reply():
+    with open("config/toogleReply.txt", "r") as file:
+        for line in file:
+            # Check if the line contains the PERIODIC_REPLY setting
+            if "PERIODIC_REPLY" in line:
+                # Split the line into the variable name and value
+                key, value = line.strip().split("=")
+                # Check if the value is 'true'
+                if key == "PERIODIC_REPLY" and value.lower() == "true":
+                    return True
+                else:
+                    return False
+    return False
+
+# Usage
+if check_periodic_reply():
+    print("Periodic reply is enabled.")
+else:
+    print("Periodic reply is disabled.") 
 # Function to send a message every 20 minutes
 async def periodic_message_task():
     
@@ -153,7 +192,8 @@ async def periodic_message_task():
             channel = bot.get_channel(channel_id)
             if channel:
                 try:
-                    await channel.send(message_content)
+                    if message_content != None:
+                        await channel.send(message_content)
                 except Exception as e:
                     print(f"Failed to send periodic message: {e}")
         await asyncio.sleep(1200)  # 20 minutes in seconds
@@ -161,6 +201,8 @@ async def periodic_message_task():
 # Function to reply based on history every 5 minutes
 async def reply_based_on_history_task():
      while True:
+        if  check_periodic_reply()== False:
+            continue
         message_content = get_random_string()
         for channel_id in bot.active_channels:
             channel = bot.get_channel(channel_id)
@@ -170,7 +212,7 @@ async def reply_based_on_history_task():
                   await channel.send(res)
                 except Exception as e:
                     print(f"Failed to send periodic message: {e}")
-        await asyncio.sleep(1200)  # 20 minutes in seconds
+        await asyncio.sleep(1500)  # 20 minutes in seconds
     # 5 minutes in seconds
 def clear_console():
     os.system("cls" if os.name == "nt" else "clear")
@@ -346,12 +388,53 @@ async def generate_response_and_reply(message, prompt, history):
         await asyncio.sleep(1.5)
 
     return response
+def toggle_periodic_reply(file_path):
+    """
+    Toggles the PERIODIC_REPLY value between true and false in the specified .txt file.
+    
+    :param file_path: The path to the .txt file.
+    """
+    try:
+        # Read the content of the file
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+
+        # Variable to check if the keyword was found
+        keyword_found = False
+
+        # Iterate through the lines to find and toggle the PERIODIC_REPLY value
+        for i, line in enumerate(lines):
+            if "PERIODIC_REPLY=" in line:
+                current_value = line.strip().split("=")[1].lower()
+                new_value = "false" if current_value == "true" else "true"
+                lines[i] = f"PERIODIC_REPLY={new_value}\n"
+                keyword_found = True
+                break
+
+        # If the keyword was not found, add it to the file
+        if not keyword_found:
+            lines.append("PERIODIC_REPLY=true\n")
+
+        # Write the updated content back to the file
+        with open(file_path, 'w') as file:
+            file.writelines(lines)
+
+        print("PERIODIC_REPLY value has been toggled successfully.")
+
+    except Exception as e:
+        print(f"An error occurred while toggling PERIODIC_REPLY: {e}")
 
 
 @bot.event
 async def on_message(message):
     if message.content.startswith("~preset"):
         append_to_json(message.content)
+    if message.content.startswith("~clear"):
+        clear_json_file()
+    
+    if message.content.startswith("~toggleRep"):
+        toggle_periodic_reply("config/toogleReply.txt")
+    
    
     if should_ignore_message(message) and not message.author.id == bot.owner_id:
         return
