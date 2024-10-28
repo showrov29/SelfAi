@@ -8,5 +8,5 @@ pyYAML
 requests
 flask
 groq
-discord
+
 openai

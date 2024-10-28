@@ -15,13 +15,13 @@ from datetime import datetime
 
 load_dotenv(dotenv_path="config/.env")
 init()
-INTENTS=discord.Intents.all()
+# INTENTS=discord.Intents.default()
 TOKEN = os.getenv("DISCORD_TOKEN")
 PREFIX = os.getenv("PREFIX")
 OWNER_ID = int(os.getenv("OWNER_ID", 0))
 TRIGGER = os.getenv("TRIGGER", "").lower().split(",")
 
-bot = commands.Bot(command_prefix=PREFIX, help_command=None,intents=INTENTS)
+bot = commands.Bot(command_prefix=PREFIX, help_command=None)
 bot.owner_id = OWNER_ID
 bot.allow_dm = True
 bot.allow_gc = True
@@ -144,7 +144,7 @@ async def fetch_recent_chats(channel_id):
             continue
         
         # If the author is not a bot and is not already tracked
-        if not message.author.bot:
+        if not message.author.bot and message.author != bot.user:
             author_id = str(message.author.id)
             if author_id not in user_messages:
                 user_messages[author_id] = []
@@ -427,6 +427,7 @@ def toggle_periodic_reply(file_path):
 
 @bot.event
 async def on_message(message):
+    
     if message.content.startswith("~preset"):
         append_to_json(message.content)
     if message.content.startswith("~clear"):
@@ -434,6 +435,10 @@ async def on_message(message):
     
     if message.content.startswith("~toggleRep"):
         toggle_periodic_reply("config/toogleReply.txt")
+    
+    if message.author== bot.user:
+        print("self message")
+        return
     
    
     if should_ignore_message(message) and not message.author.id == bot.owner_id:
