@@ -178,11 +178,7 @@ def check_periodic_reply():
                     return False
     return False
 
-# Usage
-if check_periodic_reply():
-    print("Periodic reply is enabled.")
-else:
-    print("Periodic reply is disabled.") 
+
 # Function to send a message every 20 minutes
 async def periodic_message_task():
     
@@ -201,15 +197,16 @@ async def periodic_message_task():
 # Function to reply based on history every 5 minutes
 async def reply_based_on_history_task():
      while True:
-        if  check_periodic_reply()== False:
-            continue
+        # if  check_periodic_reply()== False:
+        #     continue
         message_content = get_random_string()
         for channel_id in bot.active_channels:
             channel = bot.get_channel(channel_id)
             if channel:
                 try:
                   res=await fetch_recent_chats(channel_id)
-                  await channel.send(res)
+                  if check_periodic_reply()== True:
+                    await channel.send(res)
                 except Exception as e:
                     print(f"Failed to send periodic message: {e}")
         await asyncio.sleep(1500)  # 20 minutes in seconds
@@ -428,15 +425,17 @@ def toggle_periodic_reply(file_path):
 @bot.event
 async def on_message(message):
     
-    if message.content.startswith("~preset"):
+    if message.content.startswith("~preset")  and message.author.id == bot.owner_id:
         append_to_json(message.content)
-    if message.content.startswith("~clear"):
+    if message.content.startswith("~clear")  and message.author.id == bot.owner_id:
         clear_json_file()
     
-    if message.content.startswith("~toggleRep"):
+    if message.content.startswith("~toggleRep")  and message.author.id == bot.owner_id:
         toggle_periodic_reply("config/toogleReply.txt")
     
-    if message.author== bot.user:
+   
+    
+    if message.author.id == bot.owner_id and not message.content.startswith("~"):
         print("self message")
         return
     
